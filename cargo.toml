@@ -3,3 +3,4 @@ members = [
     "crates/cli", 
     "crates/app"
 ] # ["crates/*"]
+resolver = "3"
