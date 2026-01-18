@@ -1,0 +1,7 @@
+[workspace]
+members = ["crates/cli"] # ["crates/*"]
+
+# [package]
+# name = "midiedit"
+# version = "0.1.0"
+# authors = ["dylan"]
