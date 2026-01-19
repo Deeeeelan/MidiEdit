@@ -22,6 +22,21 @@ enum Commands {
     Transpose(TransposeFile),
 }
 
+#[derive(Args)]
+struct RangeArgs {
+    /// Which track to apply the transformation
+    #[arg(short, long)]
+    track: u8,
+
+    /// where to start the transformation
+    #[arg(short, long)]
+    start: u32,
+
+    /// where to end the transformation
+    #[arg(short, long)]
+    end: u32,
+}
+
 /// reads and prints the file
 #[derive(Args)]
 struct TestFile {
@@ -33,17 +48,30 @@ struct TestFile {
 #[derive(Args)]
 struct ReadFile {
     /// path of file to read
-    file: std::path::PathBuf
+    file: std::path::PathBuf,
 }
 
 /// tramspose all the tracks of a midi file
 #[derive(Args)]
 struct TransposeFile {
-    /// path of file to read
+    /// path of file to transpose
     file: std::path::PathBuf,
 
     /// number of semitones to transpose by
     amt: i8,
+
+    #[command(flatten)]
+    range: RangeArgs,
+}
+
+/// scale the velocity levels of all of the tracks in a file
+#[derive(Args)]
+struct ScaleLevels {
+    /// path of file to scale
+    file: std::path::PathBuf,
+    
+    #[command(flatten)]
+    range: RangeArgs,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
