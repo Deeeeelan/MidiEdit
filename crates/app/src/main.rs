@@ -17,6 +17,9 @@ enum Commands {
 
     /// test if the file is a midi file and print some debug data
     Test(TestFile),
+
+    /// tramspose all the tracks of a midi file
+    Transpose(TransposeFile),
 }
 
 /// reads and prints the file
@@ -31,6 +34,16 @@ struct TestFile {
 struct ReadFile {
     /// path of file to read
     file: std::path::PathBuf
+}
+
+/// tramspose all the tracks of a midi file
+#[derive(Args)]
+struct TransposeFile {
+    /// path of file to read
+    file: std::path::PathBuf,
+
+    /// number of semitones to transpose by
+    amt: i8,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -50,6 +63,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         Commands::Test(file_path) => {
             midiedit_cli::read_file(file_path.file.clone())?;
             
+        }
+        Commands::Transpose(args) => {
+            midiedit_cli::transpose(args.file.clone(),args.amt,0,0)?;
         }
     }
 

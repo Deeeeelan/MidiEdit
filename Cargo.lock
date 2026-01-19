@@ -168,6 +168,15 @@ name = "midiedit-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "midiedit-edit-engine",
+ "midly",
+]
+
+[[package]]
+name = "midiedit-edit-engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
  "midly",
 ]
 

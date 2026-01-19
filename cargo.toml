@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/cli", 
-    "crates/app"
+    "crates/app",
+    "crates/edit-engine"
 ] # ["crates/*"]
 resolver = "3"

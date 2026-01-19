@@ -1,5 +1,5 @@
 [package]
-name = "midiedit-cli"
+name = "midiedit-edit-engine"
 version = "0.1.0"
 authors = ["dylan"]
 edition = "2024"
@@ -7,4 +7,3 @@ edition = "2024"
 [dependencies]
 midly = "0.5.3"
 anyhow = "1.0.100"
-midiedit-edit-engine = {path = "../edit-engine"}

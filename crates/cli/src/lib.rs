@@ -1,5 +1,6 @@
 use midly::{MetaMessage, MidiMessage, Smf, TrackEventKind};
 use anyhow::{Context, Ok, Result};
+use midiedit_edit_engine;
 
 pub fn test() {
     println!("works yay")
@@ -42,6 +43,12 @@ pub fn read_file(path: std::path::PathBuf) -> Result<()>{
     }
 
     println!("The starting tempo of the track is: {}", tempo);
+    
+    Ok(())
+}
+
+pub fn transpose(path: std::path::PathBuf, distance: i8, start: i32, end: i32) -> Result<()> {
+    midiedit_edit_engine::transpose(path, distance, start, end)?;
     
     Ok(())
 }
