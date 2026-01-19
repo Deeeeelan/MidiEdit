@@ -8,3 +8,4 @@ edition = "2024"
 midly = "0.5.3"
 anyhow = "1.0.100"
 midiedit-edit-engine = {path = "../edit-engine"}
+midiedit-core = {path = "../core"}

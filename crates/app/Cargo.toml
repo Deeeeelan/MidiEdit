@@ -9,3 +9,4 @@ clap = {version = "4.5.54", features = ["derive"]}
 anyhow = "1.0.100"
 log = "0.4.29"
 midiedit-cli = {path = "../cli"}
+midiedit-core = {path = "../core"}

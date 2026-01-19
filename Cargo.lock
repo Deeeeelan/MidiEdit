@@ -161,6 +161,7 @@ dependencies = [
  "clap",
  "log",
  "midiedit-cli",
+ "midiedit-core",
 ]
 
 [[package]]
@@ -168,8 +169,16 @@ name = "midiedit-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "midiedit-core",
  "midiedit-edit-engine",
  "midly",
+]
+
+[[package]]
+name = "midiedit-core"
+version = "0.1.0"
+dependencies = [
+ "clap",
 ]
 
 [[package]]
@@ -177,6 +186,7 @@ name = "midiedit-edit-engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "midiedit-core",
  "midly",
 ]
 

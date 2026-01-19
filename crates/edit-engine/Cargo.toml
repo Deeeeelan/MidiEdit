@@ -7,3 +7,4 @@ edition = "2024"
 [dependencies]
 midly = "0.5.3"
 anyhow = "1.0.100"
+midiedit-core = {path = "../core"}

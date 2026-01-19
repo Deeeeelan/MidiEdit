@@ -1,6 +1,7 @@
 use midly::{MetaMessage, MidiMessage, Smf, TrackEventKind};
 use anyhow::{Context, Ok, Result};
 use midiedit_edit_engine;
+use midiedit_core::{RangeArgs};
 
 pub fn test() {
     println!("works yay")
@@ -47,8 +48,8 @@ pub fn read_file(path: std::path::PathBuf) -> Result<()>{
     Ok(())
 }
 
-pub fn transpose(path: std::path::PathBuf, distance: i8, start: i32, end: i32) -> Result<()> {
-    midiedit_edit_engine::transpose(path, distance, start, end)?;
+pub fn transpose(path: std::path::PathBuf, distance: i8, range_args : RangeArgs) -> Result<()> {
+    midiedit_edit_engine::transpose(path, distance, range_args)?;
     
     Ok(())
 }

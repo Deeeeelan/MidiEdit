@@ -2,6 +2,7 @@
 members = [
     "crates/cli", 
     "crates/app",
+    "crates/core",
     "crates/edit-engine"
 ] # ["crates/*"]
 resolver = "3"
