@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use anyhow::{Context, Result};
-// use midiedit_cli;
+use midiedit_cli;
 
 /// A Simple Midi Editor
 #[derive(Parser)]
@@ -14,15 +14,26 @@ struct Cli {
 enum Commands {
     /// reads and prints the file
     Read(ReadFile),
+
+    /// test if the file is a midi file and print some debug data
+    Test(TestFile),
 }
 
+/// reads and prints the file
+#[derive(Args)]
+struct TestFile {
+    /// path of file to check
+    file: std::path::PathBuf
+}
+
+/// test if the file is a midi file and print some debug data
 #[derive(Args)]
 struct ReadFile {
     /// path of file to read
     file: std::path::PathBuf
 }
+
 fn main() -> Result<(), Box<dyn std::error::Error>>{
-    // midiedit_cli::test();
     let cli = Cli::parse();
     
     match &cli.command {
@@ -35,6 +46,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
             for line in content.lines() {
                 println!("{}", line);
             }
+        }
+        Commands::Test(file_path) => {
+            midiedit_cli::read_file(file_path.file.clone())?;
+            
         }
     }
 
