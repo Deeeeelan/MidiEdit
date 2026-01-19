@@ -117,11 +117,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "log"
+version = "0.4.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+
+[[package]]
 name = "midiedit-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "log",
+ "midiedit-cli",
 ]
 
 [[package]]
