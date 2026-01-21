@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use midly::{MidiMessage, Smf, TrackEventKind, num::{u7}};
 use anyhow::{Context, Ok, Result};
 use midiedit_core::{RangeArgs};
@@ -29,7 +31,6 @@ fn transform_smf_region(func: impl for <'a> Fn(&mut u7, &mut u7), smf: &mut Smf,
             curr_time += event.delta.as_int() as u64;
             if range_args.start.map_or(true, |start| curr_time >= start) { 
                 //TODO: implement tracks
-                //TODO: Function for restreching notes (gl)
                 if let TrackEventKind::Midi { channel: _, message: msg } = &mut event.kind {
                     if let MidiMessage::NoteOn { key, vel } = msg {
                         if *vel > 0 {
@@ -60,7 +61,6 @@ fn transform_smf_region(func: impl for <'a> Fn(&mut u7, &mut u7), smf: &mut Smf,
             }
         }
             for n in notes.iter_mut() { // this syntax is lowkenuinley crazy compared to python :sob:
-                println!("find {:?}", n.start);
                 if let Some(st) = range_args.start && n.end.0 > st {
                     if let Some(end) = range_args.end && n.start.0 < end {
                         func(n.start.1, n.start.2); // currently only passes note and velocity data for now
@@ -81,9 +81,13 @@ fn transpose_smf_region(smf: &mut Smf, distance: i8, range_args: RangeArgs) {
 }
 
 /// applifes velocity scaling
-fn scale_smf_region(smf: &mut Smf, scale: i8, center: i8, offset: i8, range_args: RangeArgs) {
-    let scale_note = |_key: &mut u7, vel: &mut u7 | {
-        *vel = u7::new(((vel.as_int() as i8).saturating_sub(center).saturating_mul(scale).saturating_add(offset)) as u8);
+fn scale_smf_region(smf: &mut Smf, scale: f64, center: i8, offset: i8, range_args: RangeArgs) {
+    let scale_note = |_key: &mut u7, vel: &mut u7 | { // TODO: manage behavior with 0 vel notes
+        *vel = u7::new((
+                ((vel.as_int() as i8)
+                .saturating_sub(center) as f64)
+                    .mul(scale) as i8)
+                    .saturating_add(offset) as u8);
     };
 
     transform_smf_region(scale_note, smf, range_args);
@@ -101,7 +105,7 @@ pub fn transpose(path: std::path::PathBuf, distance: i8, range_args: RangeArgs) 
     Ok(())
 }
 
-pub fn scale(path: std::path::PathBuf, scale: i8, center: i8, offset: i8, range_args: RangeArgs) -> Result<()>{
+pub fn scale(path: std::path::PathBuf, scale: f64, center: i8, offset: i8, range_args: RangeArgs) -> Result<()>{
     let data = read_file(&path)?;
     let mut smf = parse_midi_file(&data)?;
 

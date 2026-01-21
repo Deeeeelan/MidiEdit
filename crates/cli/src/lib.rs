@@ -55,7 +55,7 @@ pub fn transpose(path: std::path::PathBuf, distance: i8, range_args : RangeArgs)
     Ok(())
 }
 
-pub fn scale(path: std::path::PathBuf, scale: i8, center: i8, offset: i8, range_args : RangeArgs) -> Result<()> {
+pub fn scale(path: std::path::PathBuf, scale: f64, center: i8, offset: i8, range_args : RangeArgs) -> Result<()> {
     midiedit_edit_engine::scale(path, scale, center, offset, range_args)?;
     Ok(())
 }

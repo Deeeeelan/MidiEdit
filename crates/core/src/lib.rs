@@ -72,8 +72,11 @@ pub struct ScaleLevels {
     /// path of file to scale
     pub file: std::path::PathBuf,
 
-    pub scale: i8, // TODO: add default values
+    /// Decimal
+    pub scale: f64, // TODO: add default values
+    
     pub center: i8,
+
     pub offset: i8,
     
     #[command(flatten)]
