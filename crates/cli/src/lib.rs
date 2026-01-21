@@ -48,8 +48,14 @@ pub fn read_file(path: std::path::PathBuf) -> Result<()>{
     Ok(())
 }
 
+// TODO: Acutally make this the cli thing
+
 pub fn transpose(path: std::path::PathBuf, distance: i8, range_args : RangeArgs) -> Result<()> {
     midiedit_edit_engine::transpose(path, distance, range_args)?;
-    
+    Ok(())
+}
+
+pub fn scale(path: std::path::PathBuf, scale: i8, center: i8, offset: i8, range_args : RangeArgs) -> Result<()> {
+    midiedit_edit_engine::scale(path, scale, center, offset, range_args)?;
     Ok(())
 }

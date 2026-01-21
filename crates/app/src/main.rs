@@ -25,6 +25,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         Commands::Transpose(args) => {
             midiedit_cli::transpose(args.file.clone(), args.amt, args.range.clone())?;
         }
+        Commands::Scale(args) => {
+            midiedit_cli::scale(args.file.clone(), args.scale, args.center, args.offset, args.range.clone())?;
+        }
     }
 
     Ok(())

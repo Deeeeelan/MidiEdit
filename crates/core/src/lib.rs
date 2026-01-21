@@ -16,8 +16,11 @@ pub enum Commands {
     /// test if the file is a midi file and print some debug data
     Test(TestFile),
 
-    /// tramspose all the tracks of a midi file
+    /// tramspose part of a midi file
     Transpose(TransposeFile),
+
+    /// scale the velocity of the midi file
+    Scale(ScaleLevels),
 }
 
 #[derive(Clone)]
@@ -67,8 +70,12 @@ pub struct TransposeFile {
 #[derive(Args)]
 pub struct ScaleLevels {
     /// path of file to scale
-    file: std::path::PathBuf,
+    pub file: std::path::PathBuf,
+
+    pub scale: i8, // TODO: add default values
+    pub center: i8,
+    pub offset: i8,
     
     #[command(flatten)]
-    range: RangeArgs,
+    pub range: RangeArgs,
 }

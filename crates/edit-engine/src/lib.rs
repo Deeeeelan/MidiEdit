@@ -1,6 +1,4 @@
-use std::iter::repeat_with;
-
-use midly::{MidiMessage, Smf, TrackEventKind, num::{u4, u7}};
+use midly::{MidiMessage, Smf, TrackEventKind, num::{u7}};
 use anyhow::{Context, Ok, Result};
 use midiedit_core::{RangeArgs};
 
@@ -22,7 +20,7 @@ struct Note<'a> { // currently in time, pitch, velocity pairs for now, probably 
 }
 
 /// Transporm a specified region
-fn transform_smf_region(func: impl for <'a> Fn(&mut u7), smf: &mut Smf, range_args: RangeArgs) {
+fn transform_smf_region(func: impl for <'a> Fn(&mut u7, &mut u7), smf: &mut Smf, range_args: RangeArgs) {
     let mut curr_time: u64 = 0;
     for track in &mut smf.tracks {
         let mut notes: Vec<Note> = vec![];
@@ -62,22 +60,33 @@ fn transform_smf_region(func: impl for <'a> Fn(&mut u7), smf: &mut Smf, range_ar
             }
         }
             for n in notes.iter_mut() { // this syntax is lowkenuinley crazy compared to python :sob:
-                if let (Some(end), Some(st)) = (range_args.end, range_args.start) && (n.start.0 < end && n.end.0 > st) {
-                    func(n.start.1);
-                    func(n.end.1);
+                println!("find {:?}", n.start);
+                if let Some(st) = range_args.start && n.end.0 > st {
+                    if let Some(end) = range_args.end && n.start.0 < end {
+                        func(n.start.1, n.start.2); // currently only passes note and velocity data for now
+                        func(n.end.1, n.end.2);
+                    }
                 }
             }
     }
 }
 
-/// applies a give functions to all the notes within range of the smf
+/// applies a given function to all the notes within range of the smf
 fn transpose_smf_region(smf: &mut Smf, distance: i8, range_args: RangeArgs) {
-    let transpose_note = |key: &mut u7| {
+    let transpose_note = |key: &mut u7, _vel: &mut u7 | {
         *key = u7::new(((key.as_int() as i8).saturating_add(distance)) as u8);
     };
 
-    transform_smf_region(transpose_note , smf, range_args);
-    
+    transform_smf_region(transpose_note, smf, range_args);
+}
+
+/// applifes velocity scaling
+fn scale_smf_region(smf: &mut Smf, scale: i8, center: i8, offset: i8, range_args: RangeArgs) {
+    let scale_note = |_key: &mut u7, vel: &mut u7 | {
+        *vel = u7::new(((vel.as_int() as i8).saturating_sub(center).saturating_mul(scale).saturating_add(offset)) as u8);
+    };
+
+    transform_smf_region(scale_note, smf, range_args);
 }
 
 pub fn transpose(path: std::path::PathBuf, distance: i8, range_args: RangeArgs) -> Result<()>{
@@ -86,6 +95,18 @@ pub fn transpose(path: std::path::PathBuf, distance: i8, range_args: RangeArgs) 
 
     println!("Transposing by {:?}", distance);
     transpose_smf_region(&mut smf, distance, range_args);
+
+    smf.save(&path)?;
+    
+    Ok(())
+}
+
+pub fn scale(path: std::path::PathBuf, scale: i8, center: i8, offset: i8, range_args: RangeArgs) -> Result<()>{
+    let data = read_file(&path)?;
+    let mut smf = parse_midi_file(&data)?;
+
+    println!("Scaling by {:?}", scale);
+    scale_smf_region(&mut smf, scale, center, offset, range_args);
 
     smf.save(&path)?;
     
