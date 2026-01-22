@@ -1,12 +1,12 @@
-use clap::{Parser};
 use anyhow::{Context, Result};
+use clap::Parser;
 use midiedit_cli;
-use midiedit_core::{Cli, Commands, };
+use midiedit_core::{Cli, Commands};
 use midiedit_playback;
 
-fn main() -> Result<(), Box<dyn std::error::Error>>{
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    
+
     match &cli.command {
         Commands::Read(read_file) => {
             let content = std::fs::read_to_string(&read_file.file)
@@ -28,7 +28,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
             midiedit_cli::transpose(args.file.clone(), args.amt, args.range.clone())?;
         }
         Commands::Scale(args) => {
-            midiedit_cli::scale(args.file.clone(), args.scale, args.center, args.offset, args.range.clone())?;
+            midiedit_cli::scale(
+                args.file.clone(),
+                args.scale,
+                args.center,
+                args.offset,
+                args.range.clone(),
+            )?;
         }
     }
 
