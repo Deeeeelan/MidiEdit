@@ -27,8 +27,8 @@ pub enum Commands {
 #[derive(Args)]
 pub struct RangeArgs {
     /// Which track to apply the transformation
-    #[arg(short, long, default_value_t = 0)]
-    pub track: u8,
+    #[arg(short, long, value_delimiter = ' ', value_delimiter = '-')]
+    pub track: Vec<isize>,
 
     /// where to start the transformation
     #[arg(short, long)]

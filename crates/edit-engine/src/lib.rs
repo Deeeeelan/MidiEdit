@@ -1,4 +1,4 @@
-use std::ops::Mul;
+use std::{iter::Enumerate, ops::Mul};
 
 use midly::{MidiMessage, Smf, TrackEventKind, num::{u7}};
 use anyhow::{Context, Ok, Result};
@@ -24,7 +24,7 @@ struct Note<'a> { // currently in time, pitch, velocity pairs for now, probably 
 /// Transporm a specified region
 fn transform_smf_region(func: impl for <'a> Fn(&mut u7, &mut u7), smf: &mut Smf, range_args: RangeArgs) {
     let mut curr_time: u64 = 0;
-    for track in &mut smf.tracks {
+    for (i, track) in smf.tracks.iter_mut().enumerate() {
         let mut notes: Vec<Note> = vec![];
         let mut active: [Vec<(u64, &mut u7, &mut u7)>; 128] = [const {Vec::new()}; 128];
         for event in track {
@@ -45,7 +45,7 @@ fn transform_smf_region(func: impl for <'a> Fn(&mut u7, &mut u7), smf: &mut Smf,
                                 notes.push(note);
                             }
                         }
-                   }else if let MidiMessage::NoteOff { key, vel } = msg {
+                   } else if let MidiMessage::NoteOff { key, vel } = msg {
                         if active[key.as_int() as usize].last() != None { // If there is no pairing start event, skip it
                             let start_data = active[key.as_int() as usize].pop().unwrap(); 
                             let note = Note {
@@ -61,11 +61,10 @@ fn transform_smf_region(func: impl for <'a> Fn(&mut u7, &mut u7), smf: &mut Smf,
             }
         }
             for n in notes.iter_mut() { // this syntax is lowkenuinley crazy compared to python :sob:
-                if let Some(st) = range_args.start && n.end.0 > st {
-                    if let Some(end) = range_args.end && n.start.0 < end {
-                        func(n.start.1, n.start.2); // currently only passes note and velocity data for now
-                        func(n.end.1, n.end.2);
-                    }
+                if range_args.start.map_or(true, |s| n.end.0 > s)
+                && range_args.end.map_or(true, |e| n.start.0 < e) {
+                    func(n.start.1, n.start.2); // currently only passes note and velocity data for now
+                    func(n.end.1, n.end.2);
                 }
             }
     }
@@ -80,13 +79,13 @@ fn transpose_smf_region(smf: &mut Smf, distance: i8, range_args: RangeArgs) {
     transform_smf_region(transpose_note, smf, range_args);
 }
 
-/// applifes velocity scaling
+/// applies velocity scaling
 fn scale_smf_region(smf: &mut Smf, scale: f64, center: i8, offset: i8, range_args: RangeArgs) {
-    let scale_note = |_key: &mut u7, vel: &mut u7 | { // TODO: manage behavior with 0 vel notes
+    let scale_note = |_key: &mut u7, vel: &mut u7 | {
         *vel = u7::new((
                 ((vel.as_int() as i8)
                 .saturating_sub(center) as f64)
-                    .mul(scale) as i8)
+                    .mul(scale).round() as i8)
                     .saturating_add(offset) as u8);
     };
 
