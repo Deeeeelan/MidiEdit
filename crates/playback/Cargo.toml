@@ -1,0 +1,9 @@
+[package]
+name = "midiedit-playback"
+version = "0.1.0"
+authors = ["dylan"]
+edition = "2024"
+
+[dependencies]
+midly = "0.5.3"
+midir = "0.10.3"

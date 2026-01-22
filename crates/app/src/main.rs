@@ -2,7 +2,7 @@ use clap::{Parser};
 use anyhow::{Context, Result};
 use midiedit_cli;
 use midiedit_core::{Cli, Commands, };
-
+use midiedit_playback;
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
     let cli = Cli::parse();
@@ -20,7 +20,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
         }
         Commands::Test(file_path) => {
             midiedit_cli::read_file(file_path.file.clone())?;
-            
+        }
+        Commands::Play(file_path) => {
+            // midiedit_playback::play_file(file_path.file.clone())?;
         }
         Commands::Transpose(args) => {
             midiedit_cli::transpose(args.file.clone(), args.amt, args.range.clone())?;

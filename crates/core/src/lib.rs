@@ -21,14 +21,17 @@ pub enum Commands {
 
     /// scale the velocity of the midi file
     Scale(ScaleLevels),
+
+    /// play a midi file
+    Play(PlayFile),
 }
 
 #[derive(Clone)]
 #[derive(Args)]
 pub struct RangeArgs {
     /// Which track to apply the transformation
-    #[arg(short, long, value_delimiter = ' ', value_delimiter = '-')]
-    pub track: Vec<isize>,
+    #[arg(short, long, value_delimiter = ',')]
+    pub track: Vec<usize>,
 
     /// where to start the transformation
     #[arg(short, long)]
@@ -50,6 +53,13 @@ pub struct TestFile {
 #[derive(Args)]
 pub struct ReadFile {
     /// path of file to read
+    pub file: std::path::PathBuf,
+}
+
+/// play a midi file
+#[derive(Args)]
+pub struct PlayFile {
+    /// path of file to play
     pub file: std::path::PathBuf,
 }
 
