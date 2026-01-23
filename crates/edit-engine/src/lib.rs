@@ -1,4 +1,4 @@
-use std::{iter::Enumerate, ops::Mul};
+use std::{ops::Mul};
 
 use anyhow::{Context, Ok, Result};
 use midiedit_core::RangeArgs;
@@ -76,11 +76,10 @@ fn transform_smf_region(
                 }
             }
             for n in notes.iter_mut() {
-                // this syntax is lowkenuinley crazy compared to python :sob:
                 if range_args.start.map_or(true, |s| n.end.0 > s)
                     && range_args.end.map_or(true, |e| n.start.0 < e)
                 {
-                    func(n.start.1, n.start.2); // currently only passes note and velocity data for now
+                    func(n.start.1, n.start.2);
                     func(n.end.1, n.end.2);
                 }
             }

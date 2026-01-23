@@ -1,0 +1,13 @@
+[package]
+name = "midiedit-tui"
+version = "0.1.0"
+authors = ["dylan"]
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.54", features = ["derive"] }
+ratatui = "0.30.0"
+anyhow = "1.0.100"
+midiedit-core = { path = "../core" }
+midiedit-cli = { path = "../cli" }
+midiedit-playback = { path = "../playback" }

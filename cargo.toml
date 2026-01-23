@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/cli", 
+    "crates/tui", 
     "crates/app",
     "crates/core",
     "crates/edit-engine"

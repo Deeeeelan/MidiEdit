@@ -5,11 +5,20 @@ use clap::{Args, Parser, Subcommand};
 #[command(version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: CliCommands,
+}
+
+/// A tui
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+pub struct Tui {
+
+    /// the file to edit
+    pub file: std::path::PathBuf,
 }
 
 #[derive(Subcommand)]
-pub enum Commands {
+pub enum CliCommands {
     /// reads and prints the file
     Read(ReadFile),
 
@@ -25,6 +34,7 @@ pub enum Commands {
     /// play a midi file
     Play(PlayFile),
 }
+
 
 #[derive(Clone)]
 #[derive(Args)]
