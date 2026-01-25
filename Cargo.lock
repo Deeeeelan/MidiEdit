@@ -805,6 +805,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "crossterm",
  "midiedit-cli",
  "midiedit-core",
  "midiedit-playback",
