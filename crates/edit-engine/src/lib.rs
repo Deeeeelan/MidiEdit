@@ -2,7 +2,10 @@ use std::ops::Mul;
 
 use anyhow::{Context, Ok, Result};
 use midiedit_core::RangeArgs;
-use midly::{MidiMessage, Smf, TrackEventKind, num::u7};
+use midly::{
+    Header, MetaMessage, MidiMessage, PitchBend, Smf, TrackEventKind,
+    num::{u7, u28},
+};
 
 fn read_file(path: &std::path::PathBuf) -> Result<Vec<u8>> {
     let data =
@@ -16,15 +19,39 @@ fn parse_midi_file(data: &[u8]) -> Result<Smf<'static>> {
         .make_static();
     Ok(smf)
 }
+struct ProcessedSmf<'a> {
+    header: Header,
+    tracks: Vec<AbsTrack<'a>>,
+}
 
-struct Note<'a> {
-    // currently in time, pitch, velocity pairs for now, probably not efficent but end velocity actually mattters...
-    start: (u64, &'a mut u7, &'a mut u7),
-    end: (u64, &'a mut u7, &'a mut u7),
+struct AbsTrack<'a>(Vec<AbsEvent<'a>>);
+
+struct AbsEvent<'a> {
+    abs_time: u64,
+    event: AbsEventKind<'a>,
+}
+enum AbsEventKind<'a> {
+    Midi {
+        channel: u8,
+        message: CompactMidiMessage,
+    },
+    SysEx(&'a [u8]),
+    Escape(&'a [u8]),
+    Meta(MetaMessage<'a>),
+}
+
+enum CompactMidiMessage {
+    Note { key: u7, start_vel: u7, end_vel: u7 }, // Note that the velocity for the NoteOff message is used in some cases
+    Aftertouch { key: u7, vel: u7 },
+    Controller { controller: u7, value: u7 },
+    ProgramChange { program: u7 },
+    ChannelAftertouch { vel: u7 },
+    PitchBend { bend: PitchBend },
 }
 
 /// Transporm a specified region
 fn transform_smf_region(
+    // TODO: turn this into a parsing function to process this into a representative state so I don't have to deal with deltatime
     func: impl for<'a> Fn(&mut u7, &mut u7),
     smf: &mut Smf,
     range_args: RangeArgs,
@@ -42,7 +69,7 @@ fn transform_smf_region(
                         message: msg,
                     } = &mut event.kind
                     {
-                        if let MidiMessage::NoteOn { key, vel } = msg {
+                        if let CompactMidiMessage::NoteOn { key, vel } = msg {
                             if *vel > 0 {
                                 active[key.as_int() as usize].push((curr_time, key, vel))
                             } else if active[key.as_int() as usize].last().is_some() {
@@ -53,7 +80,7 @@ fn transform_smf_region(
                                 };
                                 notes.push(note);
                             }
-                        } else if let MidiMessage::NoteOff { key, vel } = msg
+                        } else if let CompactMidiMessage::NoteOff { key, vel } = msg
                             && active[key.as_int() as usize].last().is_some()
                         {
                             // If there is no pairing start event, skip it
