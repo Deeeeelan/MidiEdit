@@ -1,4 +1,4 @@
-use std::{ops::Mul};
+use std::ops::Mul;
 
 use anyhow::{Context, Ok, Result};
 use midiedit_core::RangeArgs;
@@ -11,8 +11,8 @@ fn read_file(path: &std::path::PathBuf) -> Result<Vec<u8>> {
 }
 
 fn parse_midi_file(data: &[u8]) -> Result<Smf<'static>> {
-    let smf = Smf::parse(&data)
-        .with_context(|| format!("could not parse file"))?
+    let smf = Smf::parse(data)
+        .with_context(|| "could not parse file".to_string())?
         .make_static();
     Ok(smf)
 }
@@ -37,7 +37,6 @@ fn transform_smf_region(
             for event in track {
                 curr_time += event.delta.as_int() as u64;
                 if range_args.start.map_or(true, |start| curr_time >= start) {
-                    //TODO: implement tracks
                     if let TrackEventKind::Midi {
                         channel: _,
                         message: msg,
@@ -46,19 +45,7 @@ fn transform_smf_region(
                         if let MidiMessage::NoteOn { key, vel } = msg {
                             if *vel > 0 {
                                 active[key.as_int() as usize].push((curr_time, key, vel))
-                            } else {
-                                if active[key.as_int() as usize].last() != None {
-                                    let start_data = active[key.as_int() as usize].pop().unwrap();
-                                    let note = Note {
-                                        start: start_data,
-                                        end: (curr_time, key, vel),
-                                    };
-                                    notes.push(note);
-                                }
-                            }
-                        } else if let MidiMessage::NoteOff { key, vel } = msg {
-                            if active[key.as_int() as usize].last() != None {
-                                // If there is no pairing start event, skip it
+                            } else if active[key.as_int() as usize].last().is_some() {
                                 let start_data = active[key.as_int() as usize].pop().unwrap();
                                 let note = Note {
                                     start: start_data,
@@ -66,6 +53,16 @@ fn transform_smf_region(
                                 };
                                 notes.push(note);
                             }
+                        } else if let MidiMessage::NoteOff { key, vel } = msg
+                            && active[key.as_int() as usize].last().is_some()
+                        {
+                            // If there is no pairing start event, skip it
+                            let start_data = active[key.as_int() as usize].pop().unwrap();
+                            let note = Note {
+                                start: start_data,
+                                end: (curr_time, key, vel),
+                            };
+                            notes.push(note);
                         }
                     }
                     if let Some(end) = range_args.end
