@@ -1,4 +1,4 @@
-use std::ops::Mul;
+use std::{ops::Mul, path};
 
 use anyhow::{Context, Ok, Result};
 use midiedit_core::RangeArgs;
@@ -19,6 +19,12 @@ fn parse_midi_file(data: &[u8]) -> Result<Smf<'static>> {
         .make_static();
     Ok(smf)
 }
+
+fn midi_to_smf(path: &std::path::PathBuf) -> Result<Smf<'static>> {
+    let data = read_file(&path)?;
+    return parse_midi_file(&data);
+}
+
 struct ProcessedSmf<'a> {
     header: Header,
     tracks: Vec<AbsTrack<'a>>,
@@ -41,12 +47,77 @@ enum AbsEventKind<'a> {
 }
 
 enum CompactMidiMessage {
-    Note { key: u7, start_vel: u7, end_vel: u7 }, // Note that the velocity for the NoteOff message is used in some cases
+    Note(Note),
     Aftertouch { key: u7, vel: u7 },
     Controller { controller: u7, value: u7 },
     ProgramChange { program: u7 },
     ChannelAftertouch { vel: u7 },
     PitchBend { bend: PitchBend },
+}
+struct Note {
+    key: u7,
+    note_length: u64,
+    start_vel: u7,
+    end_vel: u7,
+} // Note that the velocity for the NoteOff message is used in some cases
+
+/// used for the pairing of NoteOn/NoteOff events
+struct NoteStartFragment {
+    key: u7,
+    start_time: u64,
+    start_vel: u7,
+}
+
+/// Processes the smf to a usable format
+fn process_smf(smf: Smf) {
+    // -> ProcessedSmf {
+    let mut curr_time: u64 = 0;
+    let mut new_smf: ProcessedSmf = ProcessedSmf {
+        header: smf.header,
+        tracks: Vec::new(),
+    };
+    let new_tracks = &new_smf.tracks;
+    for track in smf.tracks.iter() {
+        if !track.is_empty() {
+            let mut notes: Vec<Note> = vec![]; // Need to move these inside of CompactMidiMessage
+            let mut active: [Vec<NoteStartFragment>; 128] = [const { Vec::new() }; 128];
+            for event in track {
+                curr_time += event.delta.as_int() as u64;
+                if let TrackEventKind::Midi { channel, message } = event.kind {
+                    if let MidiMessage::NoteOn { key, vel } = message {
+                        if vel > 0 {
+                            active[key.as_int() as usize].push(NoteStartFragment {
+                                key,
+                                start_time: curr_time,
+                                start_vel: vel,
+                            })
+                        } else if active[key.as_int() as usize].last().is_some() {
+                            let start_data = active[key.as_int() as usize].pop().unwrap();
+                            let note = Note {
+                                key,
+                                note_length: curr_time - start_data.start_time,
+                                start_vel: start_data.start_vel,
+                                end_vel: vel,
+                            };
+                            notes.push(note);
+                        }
+                    } else if let MidiMessage::NoteOff { key, vel } = message
+                        && active[key.as_int() as usize].last().is_some()
+                    {
+                        // If there is no pairing start event, skip it
+                        let start_data = active[key.as_int() as usize].pop().unwrap();
+                        let note = Note {
+                            key,
+                            note_length: curr_time - start_data.start_time,
+                            start_vel: start_data.start_vel, // TODO: Move Notes into CompactMidiMessage and AbsEventKind, pass down misc msgs
+                            end_vel: vel,
+                        };
+                        notes.push(note);
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Transporm a specified region
