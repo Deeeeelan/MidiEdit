@@ -4,7 +4,7 @@ use anyhow::{Context, Ok, Result};
 use midiedit_core::RangeArgs;
 use midly::{
     Header, MetaMessage, MidiMessage, PitchBend, Smf, TrackEventKind,
-    num::{u7, u28},
+    num::{u4, u7, u28},
 };
 
 fn read_file(path: &std::path::PathBuf) -> Result<Vec<u8>> {
@@ -22,23 +22,28 @@ fn parse_midi_file(data: &[u8]) -> Result<Smf<'static>> {
 
 fn midi_to_smf(path: &std::path::PathBuf) -> Result<Smf<'static>> {
     let data = read_file(&path)?;
-    return parse_midi_file(&data);
+    parse_midi_file(&data)
 }
 
+#[derive(Debug)]
 struct ProcessedSmf<'a> {
     header: Header,
     tracks: Vec<AbsTrack<'a>>,
 }
 
+#[derive(Debug)]
 struct AbsTrack<'a>(Vec<AbsEvent<'a>>);
 
+#[derive(Debug)]
 struct AbsEvent<'a> {
     abs_time: u64,
     event: AbsEventKind<'a>,
 }
+
+#[derive(Debug)]
 enum AbsEventKind<'a> {
     Midi {
-        channel: u8,
+        channel: u4,
         message: CompactMidiMessage,
     },
     SysEx(&'a [u8]),
@@ -46,6 +51,7 @@ enum AbsEventKind<'a> {
     Meta(MetaMessage<'a>),
 }
 
+#[derive(Debug)]
 enum CompactMidiMessage {
     Note(Note),
     Aftertouch { key: u7, vel: u7 },
@@ -54,6 +60,8 @@ enum CompactMidiMessage {
     ChannelAftertouch { vel: u7 },
     PitchBend { bend: PitchBend },
 }
+
+#[derive(Debug)]
 struct Note {
     key: u7,
     note_length: u64,
@@ -67,17 +75,18 @@ struct NoteStartFragment {
     start_time: u64,
     start_vel: u7,
 }
+fn create_note() {}
 
 /// Processes the smf to a usable format
-fn process_smf(smf: Smf) {
+fn process_smf(smf: Smf) -> Result<ProcessedSmf> {
     // -> ProcessedSmf {
     let mut curr_time: u64 = 0;
     let mut new_smf: ProcessedSmf = ProcessedSmf {
         header: smf.header,
-        tracks: Vec::new(),
+        tracks: vec![],
     };
-    let new_tracks = &new_smf.tracks;
     for track in smf.tracks.iter() {
+        let mut new_events: Vec<AbsEvent> = vec![];
         if !track.is_empty() {
             let mut notes: Vec<Note> = vec![]; // Need to move these inside of CompactMidiMessage
             let mut active: [Vec<NoteStartFragment>; 128] = [const { Vec::new() }; 128];
@@ -99,96 +108,118 @@ fn process_smf(smf: Smf) {
                                 start_vel: start_data.start_vel,
                                 end_vel: vel,
                             };
-                            notes.push(note);
+                            let new_message: CompactMidiMessage = CompactMidiMessage::Note(note);
+                            new_events.push(AbsEvent {
+                                abs_time: start_data.start_time, //TODO: Might want to put starttime in data struct
+                                event: AbsEventKind::Midi {
+                                    channel,
+                                    message: new_message,
+                                },
+                            });
                         }
                     } else if let MidiMessage::NoteOff { key, vel } = message
                         && active[key.as_int() as usize].last().is_some()
                     {
                         // If there is no pairing start event, skip it
-                        let start_data = active[key.as_int() as usize].pop().unwrap();
+                        let start_data = active[key.as_int() as usize].pop().unwrap(); // TODO: probably put this in a fn
                         let note = Note {
                             key,
                             note_length: curr_time - start_data.start_time,
                             start_vel: start_data.start_vel, // TODO: Move Notes into CompactMidiMessage and AbsEventKind, pass down misc msgs
                             end_vel: vel,
                         };
-                        notes.push(note);
+                        let new_message: CompactMidiMessage = CompactMidiMessage::Note(note);
+                        new_events.push(AbsEvent {
+                            abs_time: start_data.start_time,
+                            event: AbsEventKind::Midi {
+                                channel,
+                                message: new_message,
+                            },
+                        });
                     }
                 }
             }
         }
+        let new_track = AbsTrack(new_events);
+        new_smf.tracks.push(new_track);
     }
+    Ok(new_smf)
 }
 
-/// Transporm a specified region
-fn transform_smf_region(
-    // TODO: turn this into a parsing function to process this into a representative state so I don't have to deal with deltatime
-    func: impl for<'a> Fn(&mut u7, &mut u7),
-    smf: &mut Smf,
-    range_args: RangeArgs,
-) {
-    let mut curr_time: u64 = 0;
-    for (i, track) in smf.tracks.iter_mut().enumerate() {
-        if range_args.track.contains(&i) || range_args.track.is_empty() {
-            let mut notes: Vec<Note> = vec![];
-            let mut active: [Vec<(u64, &mut u7, &mut u7)>; 128] = [const { Vec::new() }; 128];
-            for event in track {
-                curr_time += event.delta.as_int() as u64;
-                if range_args.start.map_or(true, |start| curr_time >= start) {
-                    if let TrackEventKind::Midi {
-                        channel: _,
-                        message: msg,
-                    } = &mut event.kind
-                    {
-                        if let CompactMidiMessage::NoteOn { key, vel } = msg {
-                            if *vel > 0 {
-                                active[key.as_int() as usize].push((curr_time, key, vel))
-                            } else if active[key.as_int() as usize].last().is_some() {
-                                let start_data = active[key.as_int() as usize].pop().unwrap();
-                                let note = Note {
-                                    start: start_data,
-                                    end: (curr_time, key, vel),
-                                };
-                                notes.push(note);
-                            }
-                        } else if let CompactMidiMessage::NoteOff { key, vel } = msg
-                            && active[key.as_int() as usize].last().is_some()
-                        {
-                            // If there is no pairing start event, skip it
-                            let start_data = active[key.as_int() as usize].pop().unwrap();
-                            let note = Note {
-                                start: start_data,
-                                end: (curr_time, key, vel),
-                            };
-                            notes.push(note);
-                        }
-                    }
-                    if let Some(end) = range_args.end
-                        && curr_time > end
-                    {
-                        break;
-                    }
-                }
-            }
-            for n in notes.iter_mut() {
-                if range_args.start.map_or(true, |s| n.end.0 > s)
-                    && range_args.end.map_or(true, |e| n.start.0 < e)
-                {
-                    func(n.start.1, n.start.2);
-                    func(n.end.1, n.end.2);
-                }
-            }
-        }
-    }
+fn midi_to_psmf(path: &std::path::PathBuf) -> Result<ProcessedSmf<'static>> {
+    let data = read_file(&path)?;
+    let smf = parse_midi_file(&data)?;
+    return process_smf(smf);
 }
 
+/// Transform a specified region
+// fn transform_smf_region(
+//     // TODO: turn this into a parsing function to process this into a representative state so I don't have to deal with deltatime
+//     func: impl for<'a> Fn(&mut u7, &mut u7),
+//     smf: &mut Smf,
+//     range_args: RangeArgs,
+// ) {
+//     let mut curr_time: u64 = 0;
+//     for (i, track) in smf.tracks.iter_mut().enumerate() {
+//         if range_args.track.contains(&i) || range_args.track.is_empty() {
+//             let mut notes: Vec<Note> = vec![];
+//             let mut active: [Vec<(u64, &mut u7, &mut u7)>; 128] = [const { Vec::new() }; 128];
+//             for event in track {
+//                 curr_time += event.delta.as_int() as u64;
+//                 if range_args.start.map_or(true, |start| curr_time >= start) {
+//                     if let TrackEventKind::Midi {
+//                         channel: _,
+//                         message: msg,
+//                     } = &mut event.kind
+//                     {
+//                         if let CompactMidiMessage::NoteOn { key, vel } = msg {
+//                             if *vel > 0 {
+//                                 active[key.as_int() as usize].push((curr_time, key, vel))
+//                             } else if active[key.as_int() as usize].last().is_some() {
+//                                 let start_data = active[key.as_int() as usize].pop().unwrap();
+//                                 let note = Note {
+//                                     start: start_data,
+//                                     end: (curr_time, key, vel),
+//                                 };
+//                                 notes.push(note);
+//                             }
+//                         } else if let CompactMidiMessage::NoteOff { key, vel } = msg
+//                             && active[key.as_int() as usize].last().is_some()
+//                         {
+//                             // If there is no pairing start event, skip it
+//                             let start_data = active[key.as_int() as usize].pop().unwrap();
+//                             let note = Note {
+//                                 start: start_data,
+//                                 end: (curr_time, key, vel),
+//                             };
+//                             notes.push(note);
+//                         }
+//                     }
+//                     if let Some(end) = range_args.end
+//                         && curr_time > end
+//                     {
+//                         break;
+//                     }
+//                 }
+//             }
+//             for n in notes.iter_mut() {
+//                 if range_args.start.map_or(true, |s| n.end.0 > s)
+//                     && range_args.end.map_or(true, |e| n.start.0 < e)
+//                 {
+//                     func(n.start.1, n.start.2);
+//                     func(n.end.1, n.end.2);
+//                 }
+//             }
+//         }
+//     }
+// }
 /// applies a given function to all the notes within range of the smf
-fn transpose_smf_region(smf: &mut Smf, distance: i8, range_args: RangeArgs) {
+fn transpose_smf_region(psmf: &mut ProcessedSmf, distance: i8, range_args: RangeArgs) {
     let transpose_note = |key: &mut u7, _vel: &mut u7| {
         *key = u7::new(((key.as_int() as i8).saturating_add(distance)) as u8);
     };
 
-    transform_smf_region(transpose_note, smf, range_args);
+    // transform_smf_region(transpose_note, smf, range_args);
 }
 
 /// applies velocity scaling
@@ -202,17 +233,13 @@ fn scale_smf_region(smf: &mut Smf, scale: f64, center: i8, offset: i8, range_arg
         );
     };
 
-    transform_smf_region(scale_note, smf, range_args);
+    // transform_smf_region(scale_note, smf, range_args);
 }
 
 pub fn transpose(path: std::path::PathBuf, distance: i8, range_args: RangeArgs) -> Result<()> {
-    let data = read_file(&path)?;
-    let mut smf = parse_midi_file(&data)?;
-
+    let mut psmf = midi_to_psmf(&path)?;
     println!("Transposing by {:?}", distance);
-    transpose_smf_region(&mut smf, distance, range_args);
-
-    smf.save(&path)?;
+    println!("{:#?}", psmf);
 
     Ok(())
 }
