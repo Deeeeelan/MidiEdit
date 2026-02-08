@@ -79,6 +79,7 @@ fn create_note() {}
 
 /// Processes the smf to a usable format
 fn process_smf(smf: Smf) -> Result<ProcessedSmf> {
+    // TOOO pass all non-note events/structs/enums, remaining note properties
     // -> ProcessedSmf {
     let mut curr_time: u64 = 0;
     let mut new_smf: ProcessedSmf = ProcessedSmf {
@@ -88,7 +89,6 @@ fn process_smf(smf: Smf) -> Result<ProcessedSmf> {
     for track in smf.tracks.iter() {
         let mut new_events: Vec<AbsEvent> = vec![];
         if !track.is_empty() {
-            let mut notes: Vec<Note> = vec![]; // Need to move these inside of CompactMidiMessage
             let mut active: [Vec<NoteStartFragment>; 128] = [const { Vec::new() }; 128];
             for event in track {
                 curr_time += event.delta.as_int() as u64;
@@ -136,6 +136,70 @@ fn process_smf(smf: Smf) -> Result<ProcessedSmf> {
                                 message: new_message,
                             },
                         });
+                    } else if let MidiMessage::Aftertouch { key, vel } = message {
+                        // Probably come back here to modify some other messages idk
+                        new_events.push(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::Midi {
+                                channel,
+                                message: CompactMidiMessage::Aftertouch { key, vel },
+                            },
+                        });
+                    } else if let MidiMessage::Controller { controller, value } = message {
+                        new_events.push(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::Midi {
+                                channel,
+                                message: CompactMidiMessage::Controller { controller, value },
+                            },
+                        });
+                    } else if let MidiMessage::ProgramChange { program } = message {
+                        new_events.push(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::Midi {
+                                channel,
+                                message: CompactMidiMessage::ProgramChange { program },
+                            },
+                        });
+                    } else if let MidiMessage::ChannelAftertouch { vel } = message {
+                        new_events.push(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::Midi {
+                                channel,
+                                message: CompactMidiMessage::ChannelAftertouch { vel },
+                            },
+                        });
+                    } else if let MidiMessage::PitchBend { bend } = message {
+                        new_events.push(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::Midi {
+                                channel,
+                                message: CompactMidiMessage::PitchBend { bend },
+                            },
+                        });
+                    }
+                } else {
+                    // TODO: There is DEFINITELY a better way to write this FIX THIS LATER WHEN I'M BETTER AT RUST PLEASE
+                    // Pass down other event messages
+                    let mut new_event: Option<AbsEvent> = None;
+                    if let TrackEventKind::SysEx(i) = event.kind {
+                        new_event = Some(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::SysEx(i),
+                        });
+                    } else if let TrackEventKind::Escape(i) = event.kind {
+                        new_event = Some(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::Escape(i),
+                        });
+                    } else if let TrackEventKind::Meta(mm) = event.kind {
+                        new_event = Some(AbsEvent {
+                            abs_time: curr_time,
+                            event: AbsEventKind::Meta(mm),
+                        });
+                    }
+                    if let Some(ev) = new_event {
+                        new_events.push(ev);
                     }
                 }
             }
@@ -147,9 +211,9 @@ fn process_smf(smf: Smf) -> Result<ProcessedSmf> {
 }
 
 fn midi_to_psmf(path: &std::path::PathBuf) -> Result<ProcessedSmf<'static>> {
-    let data = read_file(&path)?;
+    let data = read_file(path)?;
     let smf = parse_midi_file(&data)?;
-    return process_smf(smf);
+    process_smf(smf)
 }
 
 /// Transform a specified region
@@ -237,7 +301,7 @@ fn scale_smf_region(smf: &mut Smf, scale: f64, center: i8, offset: i8, range_arg
 }
 
 pub fn transpose(path: std::path::PathBuf, distance: i8, range_args: RangeArgs) -> Result<()> {
-    let mut psmf = midi_to_psmf(&path)?;
+    let psmf = midi_to_psmf(&path)?;
     println!("Transposing by {:?}", distance);
     println!("{:#?}", psmf);
 
